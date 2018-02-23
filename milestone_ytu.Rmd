@@ -1,0 +1,200 @@
+---
+title: "Capstone -- Milestone Report"
+author: "Yuling Tu"
+date: "February 22, 2018"
+output: html_document
+---
+
+```{r setup, include=TRUE, message=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(stringi)
+library(ggplot2)
+library(wordcloud)
+library(tm)
+library(RWeka)
+library(ngram)
+```
+
+# Synopsis
+
+The final goal of this project is to build a text prediction model in Shiny application by using the SwifKey data set. 
+
+The first step in building a predictive model for text is understanding the distribution and relationship between the words, tokens, and phrases in the sample text. The goal of this milestone report is to understand the basic relationships in the data and prepare to build the linguistic models.
+
+# Data Exploratory and Cleaning
+
+In this exploratory, only the English files are used. 
+
+## File Exploratory
+
+The summary of data sets, including file sizes, line counts, word counts, median length of line, and maximum length of line, is listed below.
+```{r load data}
+## Loading the original data set
+blogs <- readLines("./data/en_US.blogs.txt", encoding = "UTF-8", skipNul=TRUE)
+news <- readLines("./data/en_US.news.txt", encoding = "UTF-8", skipNul=TRUE)
+twitter <- readLines("./data/en_US.twitter.txt", encoding = "UTF-8", skipNul=TRUE)
+## file size in MB
+bsize <- file.info("./data/en_US.blogs.txt")$size/1024^2
+nsize <- file.info("./data/en_US.news.txt")$size/1024^2
+tsize <- file.info("./data/en_US.twitter.txt")$size/1024^2
+## number of words
+bword <- stri_count_words(blogs)
+nword <- stri_count_words(news)
+tword <- stri_count_words(twitter)
+
+filedf <- data.frame(filename = c("blogs", "news", "twitter"),
+           size_MB = c(bsize, nsize, tsize),
+           num_lines = c(length(blogs), length(news), length(twitter)),
+           num_words = c(sum(bword), sum(nword), sum(tword)),
+           median_length = c(median(nchar(blogs)), median(nchar(news)), median(nchar(twitter))),
+           #mean_length = c(mean(nchar(blogs)), mean(nchar(news)), mean(nchar(twitter))),
+           max_length = c(max(nchar(blogs)), max(nchar(news)), max(nchar(twitter))))
+           
+filedf
+```
+
+
+## File Sampling
+
+These files are huge, so only 5% of the data from each file are used for further analysis. 
+
+```{r sampling}
+set.seed(888)
+bsample <- sample(blogs, length(blogs)*0.05, replace = FALSE)
+nsample <- sample(news, length(news)*0.05, replace = FALSE)
+tsample <- sample(twitter, length(twitter)*0.05, replace = FALSE)
+## combine three sample together
+allsample  <- c(bsample,nsample,tsample)
+aline <- length(allsample)
+aword <- sum(stri_count_words(allsample))
+```
+
+After sampling the data set, the combined sample data still have `r aline` lines and `r aword` words. It's still a good size of sample for next analysis.   
+
+## Data Cleaning
+
+The tm package is used in this session to clean up the data. Before cleaning the data, corpus format is created from sampling file.  
+
+First, transform all characters to lowercase.  Then, remove the numbers, the punctuation, and the excess white space.  Finally, remove the common English stop-words (and, the, or etc..).
+
+```{r tm package}
+# remove non-en characters
+allsample <- iconv(allsample, "latin1", "ASCII", sub="")
+# create corpus
+allcorpus <- VCorpus(VectorSource(allsample))
+#convert to lower case
+allcorpus <- tm_map(allcorpus, content_transformer(tolower))
+#remove all numbers
+allcorpus <- tm_map(allcorpus, removeNumbers)
+#remove all punctuation
+allcorpus <- tm_map(allcorpus, removePunctuation)
+#remove all white spaces
+allcorpus <- tm_map(allcorpus, stripWhitespace)
+# Remove stopwords
+allcorpus <- tm_map(allcorpus, removeWords, stopwords("english"))
+```
+
+# N-Grams Analysis 
+
+Three N-Grams analysis listed below for the word trend analysis in sample files.
+
+In the meantime, I choose to convert corpus to document-term matrix (DTM) or term-document matrix, which is a mathematical matrix that describes the frequency of terms that occur in a collection of documents. A DTM may helpful on improving search result or finding topics according to to Wikipedia.  
+
+In order to solve memory allocation issue during the sorting, I remove more than 0.99 percentage of empty (i.e., terms occurring 0 times in a document) elements. 
+
+## Uni-Grams Analysis
+
+Both bar chart and word cloud chart are selected for plotting.
+
+```{r uningram}
+uni<- function(x) {
+        NGramTokenizer(x, Weka_control(min = 1, max = 1))
+}
+unigram <- removeSparseTerms(DocumentTermMatrix(allcorpus, control=list(tokenize=uni)), sparse=0.999)
+
+unisort <- sort(colSums(as.matrix(unigram)), decreasing = TRUE)
+unidf <- data.frame(word = names(unisort), frequency = unisort)
+## ggplot of unigram
+ggplot(unidf[1:30,], aes(reorder(word,-frequency), frequency))  +
+    labs(x = "Unigrams", y = "Frequency") +
+    ggtitle("Top 30 Unigrams") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_bar(stat = "identity", fill = "lightblue") +
+    theme(axis.text.x = element_text(angle = 45, size = 12, hjust = 1)) 
+## workcloud of unigram
+wordcloud(names(unisort), unisort, max.words=50, colors=brewer.pal(7,"Accent"))
+```
+
+Uni-gram analysis is only displayed the word frequency, it's definitely not the proper model for text perdition model.  
+
+## Bi-Grams Analysis
+
+```{r bigram}
+bi <- function(x){NGramTokenizer(x, Weka_control(min = 2, max = 2))}
+bigram <- removeSparseTerms(DocumentTermMatrix(allcorpus, control=list(tokenize=bi)), sparse=0.999)
+
+bisort <- sort(colSums(as.matrix(bigram)),decreasing = TRUE)
+bidf <- data.frame(word = names(bisort), frequency = bisort)
+## ggplot of bigram
+ggplot(bidf[1:25,], aes(reorder(word,-frequency), frequency))  +
+    labs(x = "Bigrams", y = "Frequency") +
+    ggtitle("Top 25 Bigrams") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_bar(stat = "identity", fill = "lightblue") +
+    theme(axis.text.x = element_text(angle = 45, size = 12, hjust = 1)) 
+## workcloud of bigram
+wordcloud(names(bisort), bisort, max.words=35, colors=brewer.pal(7,"Accent"))
+```
+
+
+Bi-gram analysis show more interesting combination of how the word used.  For example, like is highly frequent word in uni-gram, but many combinations in bi-gram.  And, the combination of "like" has different meanings.  Some of the meanings are totally opposite.  
+
+## Tri-Grams
+
+```{r trigram}
+tri <- function(x){NGramTokenizer(x, Weka_control(min = 3, max = 3))}
+trigram <- removeSparseTerms(DocumentTermMatrix(allcorpus, control=list(tokenize=tri)), sparse=0.9999)
+
+trisort <- sort(colSums(as.matrix(trigram)),decreasing = TRUE)
+tridf <- data.frame(word = names(trisort), frequency = trisort)
+## ggplot of trigram
+ggplot(tridf[1:25,], aes(reorder(word,-frequency), frequency))  +
+    labs(x = "Trigrams", y = "Frequency") +
+    ggtitle("Top 25 Trigrams") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_bar(stat = "identity", fill = "lightblue") +
+    theme(axis.text.x = element_text(angle = 45, size = 12, hjust = 1)) 
+## workcloud of bigram
+wordcloud(names(trisort), trisort, max.words=25, colors=brewer.pal(7,"Accent"))
+```
+
+# Future Development Plan 
+### software
+During the exploratory process, few issues has been identified.
+
+-- The tm package's DocumentTermMatrix() process is very slow and memory intensive. Need to decrease sample size and add removeSparseTerms function to bypass the error.  
+
+-- The tokenizer didn't work with tm version 7.3. Need to install version 7 to fix the issue after lots of searching.
+
+Researched on few forums, quanteda package is suggested.  May try the new package on future assignments.
+
+### Predition Model
+Few items from the n-grams analysis can be considered for building the text prediction model.
+
+-- Quite of frequent used phases are apostrophe words. Would replace those  apostrophe words into continuing words. For example, "cant to be "can not".
+
+-- Remove more online URL, hash-tag related data.
+
+-- Remove repeated words, such as love love love.  
+
+-- Explore more higher grams.
+
+-- Inlcude more sample data if new package can take process the load without error
+
+-- Create and test prediction algorithms with reasonable speed
+
+-- Create a Shiny application and presentation 
+
+
