@@ -54,7 +54,7 @@ Katz's back-off model is the main prediction process.  The following flow chart 
 
 The following charts display the most common words and phrases from 1, 2, 3, 4-gram RDS files. 
 
-                                                       Top 50 Unigrams
+                                                  Top 50 Unigrams
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.width=12, fig.height=8}
 suppressWarnings(library(ggplot2))
@@ -72,7 +72,7 @@ wordcloud(gram1$word, gram1$freq, max.words=50, random.order=FALSE, rot.per=0.25
           colors=brewer.pal(8, "Dark2"))
 ```
 
-                                                       Top 25 Bigrams
+                                                  Top 25 Bigrams
 
 ```{r, echo=FALSE, fig.width=10, fig.height=6}
 ## workcloud for 2-gram
