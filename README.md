@@ -12,13 +12,11 @@ Due to R memory issue, need to seperate the file into small chunk to n-gram proc
 ### Shiny application file -- ui.R and server.R
 Shiny App also include about.rmd file for the project documentation
 
-## Shiny add link -- 
+## Shiny add link -- https://ytu95035.shinyapps.io/Capstone/
 
 ## 5 Slide presentation
 
-### Capstoe_YTU.Rpres 
-
-## Presentation link -- 
+## Presentation link -- http://rpubs.com/yulingtu/Capstone
 
 
 ### Project Publish Method (use no firewall computer, the following process isn't necessary)
