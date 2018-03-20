@@ -1,6 +1,6 @@
 ### Author: Yulin Tu
 ### Date: March 19, 2018
-### serverprepare_ngram.R file for Capstone Shiny app
+### prepare_ngram.R file for Capstone Shiny app
 ### Github repo : https://github.com/ytu95035/Capstone
 
 # load library
