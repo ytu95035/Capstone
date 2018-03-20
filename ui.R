@@ -39,7 +39,7 @@ shinyUI(navbarPage("Data Science Capstone Project",
                   ),
                    tabPanel(p(icon("info"), "About"),
                             mainPanel(
-                              includeMarkdown("about.Rmd")
+                              includeMarkdown("about.html")
                             )
                    )
 ))
